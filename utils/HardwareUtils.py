@@ -18,8 +18,7 @@ import adafruit_mpr121
 from adafruit_pca9685 import PCA9685
 from adafruit_motor import servo
 
-#for camera
-from picamera2 import Picamera2
+
 
 
 
@@ -84,12 +83,6 @@ class Hardware:
 
           
 
-          #set up camera
-          self.picam2 = Picamera2()
-          camera_config = self.picam2.create_preview_configuration()
-          self.picam2.configure(camera_config)
-          self.picam2.start()
-          time.sleep(2)
 
 
 
@@ -129,8 +122,6 @@ class Hardware:
              array[i] = self.touch[i].value
          return array
 
-     def takeImage(self,path):
-          self.picam2.capture_file(path)
 
      def __del__(self):
           self.picam2.close()
@@ -143,7 +134,6 @@ if __name__ == '__main__':
      print(hardware.getTouchArray())
 
 
-     hardware.takeImage("img.png")
 
 
      while True:

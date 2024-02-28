@@ -10,6 +10,9 @@ import sys
 from pydub import AudioSegment, effects
 import threading
 
+import openwakeword
+from openwakeword.model import Model as wakeModel
+
 
 
 try:
@@ -27,14 +30,14 @@ class SoxEars():
         self.VOICE_IN_FILE = "voiceIn.wav"
 
         self.nonTalkingTimeElapsed = 0
-        self.maxBufferSize = int(2 * self.RATE * 1.0) #float in seconds to save in prebuffer. 2*RATE due to stereo pickup
+        self.maxBufferSize = int(1 * self.RATE * 1.0) #float in seconds to save in prebuffer. 2*RATE due to stereo pickup
         self.preNonTalkingBuffer = np.array([], np.int16)
         self.postNonTalkingBuffer = np.array([], np.int16)
 
         self.frames = np.array([[], []], np.int16)  # Initialize array to store frames
         self.linearFrames = np.array([], np.int16)
 
-        self.wakeWord = "hey socks".strip()
+        
 
 
 
@@ -81,28 +84,35 @@ class SoxEars():
 
 
 
-        print("Functions Defined")
 
 
         self.sttModel = Model("/home/sox/.local/share/coqui/models/English STT v1.0.0-huge-vocab/model.tflite")
         self.sttModel.enableExternalScorer(
-            "/home/sox/.local/share/coqui/models/English STT v1.0.0-huge-vocab/huge-vocabulary.scorer")
-        self.sttModel.addHotWord("socks", 10)  # no more than +20.0
-        self.sttModel.addHotWord("hey", 7)  # no more than +20.0
-        self.sttModel.addHotWord("so", -4)  # no more than +20.0
-        self.sttModel.addHotWord("he", -4)  # no more than +20.0
-        self.sttModel.addHotWord("ho", -4)  # no more than +20.0
-        self.sttModel.addHotWord("saw", -4)  # no more than +20.0
-        self.sttModel.addHotWord("i", -4)  # no more than +20.0
-        self.sttModel.addHotWord("the", -4)  # no more than +20.0
-        self.sttModel.addHotWord("thought", -20)  # no more than +20.0
-        self.sttModel.addHotWord("though", -20)  # no more than +20.0
+            "/home/sox/.local/share/coqui/models/English STT v1.0.0-huge-vocab/huge-vocabulary.scorer"
+            )
+        #self.sttModel.addHotWord("socks", 10)  # no more than +20.0
+        #self.sttModel.addHotWord("hey", 7)  # no more than +20.0
+        #self.sttModel.addHotWord("so", -4)  # no more than +20.0
+        #self.sttModel.addHotWord("he", -4)  # no more than +20.0
+        #self.sttModel.addHotWord("ho", -4)  # no more than +20.0
+        #self.sttModel.addHotWord("saw", -4)  # no more than +20.0
+        #self.sttModel.addHotWord("i", -4)  # no more than +20.0
+        #self.sttModel.addHotWord("the", -4)  # no more than +20.0
+        #self.sttModel.addHotWord("thought", -20)  # no more than +20.0
+        #self.sttModel.addHotWord("though", -20)  # no more than +20.0
 
         self.desired_sample_rate = self.sttModel.sampleRate()
 
+
+        
         print("STT Model setup complete")
 
+        self.wakeword_model =  wakeModel(
+            wakeword_models=["/home/sox/Documents/Sox/WakeWord/Hey_Socks.tflite"],
+            )
 
+        print("Wakeword Setup complete")
+ 
         self.awake = False
         self.listening = True
         self.command = ""
@@ -205,8 +215,8 @@ class SoxEars():
 
                 self.nonTalkingTimeElapsed += (self.FRAMES_PER_BUFFER / self.RATE)
 
-                #record 1 second of silence
-                if self.nonTalkingTimeElapsed <= 1.0:
+                #record .5 second of silence
+                if self.nonTalkingTimeElapsed <= 0.25:
                     self.postNonTalkingBuffer = np.append(self.postNonTalkingBuffer, decodedInt)
 
                 #after 1 second of silence, convert array to audio
@@ -231,10 +241,8 @@ class SoxEars():
 
                         commandStated = ""
                         if not self.awake:
-                            print(lenLinearFrames)
                             if lenLinearFrames < 50000:
-                                commandStated = self.processAudio()
-                                print(commandStated)
+                                self.tryWakeUp()
                                 print("DONE short!")
                             else:
                                 print("Too Long")
@@ -247,9 +255,6 @@ class SoxEars():
                             self.awake = False
 
 
-                        if commandStated == self.wakeWord:
-                            print("Yes?")
-                            self.awake = True
                             '''
                             
                             speaker = authenticateVoice()
@@ -259,6 +264,19 @@ class SoxEars():
 
         stream.close()
         p.terminate()
+
+    def tryWakeUp(self):
+        fs_new, audio = self.convert_samplerate(self.VOICE_IN_FILE, self.desired_sample_rate)
+
+        predictions = self.wakeword_model.predict_clip(audio)
+        for prediction in predictions:
+            for lbl in prediction.keys():
+                if prediction[lbl] > 0.05:
+                    print("Awake!")
+                    self.awake = True
+                    return True
+        return False
+
 
     def startThreadedListening(self):
         threadedListening = threading.Thread(target = self.startListening,daemon = True)
