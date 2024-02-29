@@ -10,6 +10,11 @@ import sys
 from pydub import AudioSegment, effects
 import threading
 
+from pydub import AudioSegment, effects  
+import torchaudio
+
+
+
 import openwakeword
 from openwakeword.model import Model as wakeModel
 
@@ -25,12 +30,12 @@ except ImportError:
 class SoxEars():
     def __init__(self):
         #Global Vars
-        self.RATE = 16000
-        self.FRAMES_PER_BUFFER = 1024
+        self.RATE = 48000
+        self.FRAMES_PER_BUFFER = 4096
         self.VOICE_IN_FILE = "voiceIn.wav"
 
         self.nonTalkingTimeElapsed = 0
-        self.maxBufferSize = int(1 * self.RATE * 1.0) #float in seconds to save in prebuffer. 2*RATE due to stereo pickup
+        self.maxBufferSize = int(1 * self.RATE * 3.0) #float in seconds to save in prebuffer. 2*RATE due to stereo pickup
         self.preNonTalkingBuffer = np.array([], np.int16)
         self.postNonTalkingBuffer = np.array([], np.int16)
 
@@ -59,16 +64,17 @@ class SoxEars():
                     deviceIndex = i
                     print("Input Device id ", i, " - ", p.get_device_info_by_host_api_device_index(0, i).get('name'))
 
+          
         self.stream = p.open(format=pyaudio.paFloat32,
                         channels=2,
                         rate=self.RATE,
                         input=True,
                         input_device_index=deviceIndex,
-                        frames_per_buffer=1024)
+                        frames_per_buffer=self.FRAMES_PER_BUFFER)
 
         print("PyAudio configured")
 
-        self.model, utils = torch.hub.load(repo_or_dir='/home/sox/Documents/Models/silero-vad-master',
+        self.vadModel, utils = torch.hub.load(repo_or_dir='/home/sox/Documents/Models/silero-vad-master',
                                       model='silero_vad',
                                       source='local',
                                       force_reload=True)
@@ -90,7 +96,7 @@ class SoxEars():
         self.sttModel.enableExternalScorer(
             "/home/sox/.local/share/coqui/models/English STT v1.0.0-huge-vocab/huge-vocabulary.scorer"
             )
-        #self.sttModel.addHotWord("socks", 10)  # no more than +20.0
+        self.sttModel.addHotWord("how", 10)  # no more than +20.0
         #self.sttModel.addHotWord("hey", 7)  # no more than +20.0
         #self.sttModel.addHotWord("so", -4)  # no more than +20.0
         #self.sttModel.addHotWord("he", -4)  # no more than +20.0
@@ -153,7 +159,7 @@ class SoxEars():
         offset = i.min + abs_max
         return (sig * abs_max + offset).clip(i.min, i.max).astype(dtype)
 
-
+    
     def convert_samplerate(self,audio_path, desired_sample_rate):
         sox_cmd = "sox {} --type raw --bits 16 --channels 1 --rate {} --encoding signed-integer --endian little --compression 0.0 --no-dither - ".format(
             quote(audio_path), desired_sample_rate
@@ -172,6 +178,29 @@ class SoxEars():
 
         return desired_sample_rate, np.frombuffer(output, np.int16)
 
+
+    # DISCLAIMER: This function is copied from https://github.com/nwhitehead/swmixer/blob/master/swmixer.py, 
+    #             which was released under LGPL. 
+    def resample_by_interpolation(self, signal, input_fs, output_fs):
+    
+        scale = output_fs / input_fs
+        # calculate new length of sample
+        n = round(len(signal) * scale)
+    
+        # use linear interpolation
+        # endpoint keyword means than linspace doesn't go all the way to 1.0
+        # If it did, there are some off-by-one errors
+        # e.g. scale=2.0, [1,2,3] should go to [1,1.5,2,2.5,3,3]
+        # but with endpoint=True, we get [1,1.4,1.8,2.2,2.6,3]
+        # Both are OK, but since resampling will often involve
+        # exact ratios (i.e. for 44100 to 22050 or vice versa)
+        # using endpoint=False gets less noise in the resampled sound
+        resampled_signal = np.interp(
+            np.linspace(0.0, 1.0, n, endpoint=False),  # where to interpret
+            np.linspace(0.0, 1.0, len(signal), endpoint=False),  # known positions
+            signal,  # known data points
+        )
+        return resampled_signal
 
     def processAudio(self):
         # convert sample rate
@@ -198,12 +227,17 @@ class SoxEars():
 
             decodedFloatSplit = np.stack((decodedFloat[::2], decodedFloat[1::2]), axis=0)  # channels on separate axes
 
-            tensor = torch.from_numpy(decodedFloatSplit[0])
+            
+            
+            
+            #tensor = self.resample_by_interpolation(decodedFloatSplit[0],self.RATE,16000)
+            
+            tensor = torch.from_numpy(decodedFloatSplit[0][1::3])
+            speech_prob = self.vadModel(tensor, 16000).item()
+            
 
-            speech_prob = self.model(tensor, 16000).item()
-
-            if speech_prob > 0.05:
-                nonTalkingTimeElapsed = 0
+            if speech_prob > 0.25:
+                self.nonTalkingTimeElapsed = 0
                 self.linearFrames = np.append(self.linearFrames, decodedInt)
                 #print(len(linearFrames))
             else:
@@ -216,7 +250,7 @@ class SoxEars():
                 self.nonTalkingTimeElapsed += (self.FRAMES_PER_BUFFER / self.RATE)
 
                 #record .5 second of silence
-                if self.nonTalkingTimeElapsed <= 0.25:
+                if self.nonTalkingTimeElapsed <= 0.5:
                     self.postNonTalkingBuffer = np.append(self.postNonTalkingBuffer, decodedInt)
 
                 #after 1 second of silence, convert array to audio
@@ -234,14 +268,17 @@ class SoxEars():
                         fullDecodedSplit = np.stack((self.linearFrames[::2], self.linearFrames[1::2]),
                                                     axis=0)  # channels on separate axes
                         fullDecodedSplitTransposed = fullDecodedSplit.T
-                        wf.write('voiceIn.wav', 16000, fullDecodedSplitTransposed)
+
+                        
+                        wf.write('voiceIn.wav', self.RATE, fullDecodedSplitTransposed)
+
 
                         frames = np.array([[], []])  # wipe out frames so audio is clear for next time
                         self.linearFrames = np.array([])
 
                         commandStated = ""
                         if not self.awake:
-                            if lenLinearFrames < 50000:
+                            if lenLinearFrames < 500000:
                                 self.tryWakeUp()
                                 print("DONE short!")
                             else:
