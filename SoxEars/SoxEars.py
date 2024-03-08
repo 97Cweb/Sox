@@ -74,7 +74,7 @@ class SoxEars():
 
         print("PyAudio configured")
 
-        self.vadModel, utils = torch.hub.load(repo_or_dir='/home/sox/Documents/Models/silero-vad-master',
+        self.vadModel, utils = torch.hub.load(repo_or_dir='/home/sox/Documents/Sox/.models/silero-vad-master',
                                       model='silero_vad',
                                       source='local',
                                       force_reload=True)
@@ -92,7 +92,7 @@ class SoxEars():
 
 
 
-        self.sttModel = Model("/home/sox/.local/share/coqui/models/English STT v1.0.0-huge-vocab/model.tflite")
+        self.sttModel = Model("/home/sox/Documents/Sox/.models/STT/coqui/models/English STT v1.0.0-huge-vocab/model.tflite")
         self.sttModel.enableExternalScorer(
             "/home/sox/.local/share/coqui/models/English STT v1.0.0-huge-vocab/huge-vocabulary.scorer"
             )
