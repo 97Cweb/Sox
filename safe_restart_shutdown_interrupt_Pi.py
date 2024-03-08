@@ -57,6 +57,15 @@
 #
 # -----------------------------------------------------------------------------
 
+'''
+setup
+sudo nano /etc/rc.local
+add python /home/sox/Documents/Sox/safe_restart_shutdown_interrupt_Pi.py &
+exit
+sudo reboot
+'''
+
+
 import time
 import RPi.GPIO as GPIO #Python Package Reference: https://pypi.org/project/RPi.GPIO/
 
