@@ -1,3 +1,15 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:d78d23788798699e12325322022a1da8966f13315d93d236028aded8dc8ea9fa
-size 372
+import time
+
+from utils.ChatterSox import ChatterSox
+from utils.HardwareUtils import Hardware
+
+if __name__ == "__main__":
+    hardware = Hardware()
+    #create chatterSox instance
+    #pass in path of wav file to play
+    chatterSox = ChatterSox(hardware.servo0, hardware.speakerMute)
+    
+    chatterSox.talk("output.wav")
+
+    time.sleep(1)
+    chatterSox.play("0.wav")

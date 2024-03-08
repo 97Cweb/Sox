@@ -1,3 +1,28 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:45f8828fee8c9b7a15b6c4a4131803fed8f1dfe7f5c9fd0f373e2813a969e25d
-size 951
+from utils.HardwareUtils import Hardware
+import time
+hardware = Hardware()
+while True:
+         hardware.servo0.angle = 0
+         #hardware.servo1.angle = 0
+         #hardware.servo2.angle = 0
+         #hardware.servo3.angle = 0
+         #hardware.servo4.angle = 0
+         #hardware.servo5.angle = 0
+         #hardware.servo6.angle = 0
+         #hardware.servo7.angle = 0
+         #hardware.servo8.angle = 0
+         #hardware.servo9.angle = 0
+         #hardware.servo10.angle = 0
+         time.sleep(0.5)
+         hardware.servo0.angle = 180
+         #hardware.servo1.angle = 180
+         #hardware.servo2.angle = 180
+         #hardware.servo3.angle = 180
+         #hardware.servo4.angle = 180
+         #hardware.servo5.angle = 180
+         #hardware.servo6.angle = 180
+         #hardware.servo7.angle = 180
+         #hardware.servo8.angle = 180
+         #hardware.servo9.angle = 180
+         #hardware.servo10.angle = 180
+         time.sleep(0.5)
