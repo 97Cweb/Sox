@@ -94,7 +94,7 @@ class SoxEars():
 
         self.sttModel = Model("/home/sox/Documents/Sox/.models/STT/coqui/models/English STT v1.0.0-huge-vocab/model.tflite")
         self.sttModel.enableExternalScorer(
-            "/home/sox/.local/share/coqui/models/English STT v1.0.0-huge-vocab/huge-vocabulary.scorer"
+            "/home/sox/Documents/Sox/.models/STT/coqui/models/English STT v1.0.0-huge-vocab/huge-vocabulary.scorer"
             )
         self.sttModel.addHotWord("how", 10)  # no more than +20.0
         #self.sttModel.addHotWord("hey", 7)  # no more than +20.0
@@ -114,7 +114,7 @@ class SoxEars():
         print("STT Model setup complete")
 
         self.wakeword_model =  wakeModel(
-            wakeword_models=["/home/sox/Documents/Sox/WakeWord/Hey_Socks.tflite"],
+            wakeword_models=["/home/sox/Documents/Sox/.models/WakeWord/Hey_Socks.tflite"],
             )
 
         print("Wakeword Setup complete")
