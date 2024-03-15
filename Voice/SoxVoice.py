@@ -6,7 +6,7 @@ from pydub import AudioSegment
 
 class SoxVoice:
     def __init__(self):
-        soxVoicePath = "SoxVoice/voice-sox/sox.onnx"
+        soxVoicePath = "Voice/voice-sox/sox.onnx"
         voice = Piper(soxVoicePath)
 
         self.synthesize = partial(
