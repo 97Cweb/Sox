@@ -71,4 +71,5 @@ def sendToHA(sentence):
                 
 if __name__ == '__main__':
     print(getWiki("what is weather", intents))
+   
     

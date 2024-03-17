@@ -14,6 +14,9 @@ import adafruit_mpu6050
 #for touch
 import adafruit_mpr121
 
+#for voltage reading
+import adafruit_ina260
+
 #for servoDriver
 from adafruit_pca9685 import PCA9685
 from adafruit_motor import servo
@@ -49,10 +52,16 @@ class Hardware:
 
           #i2c setup
           i2c = board.I2C()  # uses board.SCL and board.SDA
+          
+          #voltage 
+          self.power = adafruit_ina260.INA260(i2c, 0x41)
+          
           #gyro
           self.gyro = adafruit_mpu6050.MPU6050(i2c, 0x69)
           #touch
           self.touch = adafruit_mpr121.MPR121(i2c, address= 0x5A)
+          
+          
           #servoDriver
           pca = PCA9685(i2c, address = 0x40)
           pca.frequency = 50
@@ -64,7 +73,7 @@ class Hardware:
           self.servo2 = servo.Servo(pca.channels[2])
           self.servo2.set_pulse_width_range(500, 2500)
           self.servo3 = servo.Servo(pca.channels[3])
-          self.servo3.set_pulse_width_range(500, 2500)
+          self.servo3.set_pulse_width_range(500, 2000)
           self.servo4 = servo.Servo(pca.channels[4])
           self.servo4.set_pulse_width_range(500, 2500)
           self.servo5 = servo.Servo(pca.channels[5])
@@ -103,6 +112,10 @@ class Hardware:
          return True
 
 
+     def readPower(self):
+        print("Current:", self.power.current)
+        print("Voltage:", self.power.voltage)
+        print("Power:", self.power.power)
 
      def readGyro(self):
          print("Acceleration: X:%.2f, Y: %.2f, Z: %.2f m/s^2" % (self.gyro.acceleration))
@@ -126,6 +139,7 @@ class Hardware:
 
 if __name__ == '__main__':
      hardware=Hardware()
+     hardware.readPower()
      hardware.readGyro()
      print(hardware.getTouch(0))
      print(hardware.getTouchArray())
@@ -134,7 +148,9 @@ if __name__ == '__main__':
 
 
      while True:
-         print("here")
+         hardware.flashlight(True)
+         hardware.laser(True)
+         hardware.ears(True)
          '''
          hardware.servo0.angle = 0
          hardware.servo1.angle = 0
@@ -151,6 +167,9 @@ if __name__ == '__main__':
          hardware.servo10.angle = 0
          '''
          time.sleep(1)
+         hardware.flashlight(False)
+         hardware.laser(False)
+         hardware.ears(False)
          '''
          hardware.servo0.angle = 180
          hardware.servo1.angle = 180
@@ -165,5 +184,5 @@ if __name__ == '__main__':
          hardware.servo8.angle = 180
          hardware.servo9.angle = 180
          hardware.servo10.angle = 180
+         '''
          time.sleep(1)
-'''

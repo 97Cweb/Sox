@@ -41,7 +41,7 @@ class SoxEars():
         self.frames = np.array([[], []], np.int16)  # Initialize array to store frames
         self.linearFrames = np.array([], np.int16)
 
-        self.awake = False
+        self.awake = True
         self.listening = True
         self.command = ""
 
