@@ -2,20 +2,18 @@ import torch
 import pyaudio
 import numpy as np
 import scipy.io.wavfile as wf
-from stt import Model, version
-import wave
+
 import shlex
 import subprocess
 import sys
-from pydub import AudioSegment, effects
 import threading
-
-from pydub import AudioSegment, effects  
-import torchaudio
+from faster_whisper import WhisperModel
 
 
 
-import openwakeword
+
+
+
 from openwakeword.model import Model as wakeModel
 
 
@@ -31,6 +29,7 @@ class SoxEars():
     def __init__(self):
         #Global Vars
         self.RATE = 48000
+        self.DESIRED_SAMPLE_RATE = 16000
         self.FRAMES_PER_BUFFER = 4096
         self.VOICE_IN_FILE = "voiceIn.wav"
 
@@ -42,7 +41,9 @@ class SoxEars():
         self.frames = np.array([[], []], np.int16)  # Initialize array to store frames
         self.linearFrames = np.array([], np.int16)
 
-        
+        self.awake = False
+        self.listening = True
+        self.command = ""
 
 
 
@@ -60,7 +61,7 @@ class SoxEars():
         for i in range(0, numdevices):
             if (p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
                 print(i,p.get_device_info_by_host_api_device_index(0, i).get('name'))
-                if "snd_rpi_i2s_card" in p.get_device_info_by_host_api_device_index(0, i).get('name'):
+                if "i2s" in p.get_device_info_by_host_api_device_index(0, i).get('name'):
                     deviceIndex = i
                     print("Input Device id ", i, " - ", p.get_device_info_by_host_api_device_index(0, i).get('name'))
 
@@ -92,22 +93,8 @@ class SoxEars():
 
 
 
-        self.sttModel = Model("/home/sox/Documents/Sox/.models/STT/coqui/models/English STT v1.0.0-huge-vocab/model.tflite")
-        self.sttModel.enableExternalScorer(
-            "/home/sox/Documents/Sox/.models/STT/coqui/models/English STT v1.0.0-huge-vocab/huge-vocabulary.scorer"
-            )
-        self.sttModel.addHotWord("how", 10)  # no more than +20.0
-        #self.sttModel.addHotWord("hey", 7)  # no more than +20.0
-        #self.sttModel.addHotWord("so", -4)  # no more than +20.0
-        #self.sttModel.addHotWord("he", -4)  # no more than +20.0
-        #self.sttModel.addHotWord("ho", -4)  # no more than +20.0
-        #self.sttModel.addHotWord("saw", -4)  # no more than +20.0
-        #self.sttModel.addHotWord("i", -4)  # no more than +20.0
-        #self.sttModel.addHotWord("the", -4)  # no more than +20.0
-        #self.sttModel.addHotWord("thought", -20)  # no more than +20.0
-        #self.sttModel.addHotWord("though", -20)  # no more than +20.0
-
-        self.desired_sample_rate = self.sttModel.sampleRate()
+        self.sttModel = WhisperModel("base.en",device="cpu", cpu_threads = 4, compute_type="float32")
+        
 
 
         
@@ -119,9 +106,7 @@ class SoxEars():
 
         print("Wakeword Setup complete")
  
-        self.awake = False
-        self.listening = True
-        self.command = ""
+        
 
     # From https://gist.github.com/HudsonHuang/fbdf8e9af7993fe2a91620d3fb86a182
     def float2pcm(self,sig, dtype='int16'):
@@ -204,12 +189,15 @@ class SoxEars():
 
     def processAudio(self):
         # convert sample rate
-        fs_new, audio = self.convert_samplerate(self.VOICE_IN_FILE, self.desired_sample_rate)
+        fs_new, audio = self.convert_samplerate(self.VOICE_IN_FILE, self.DESIRED_SAMPLE_RATE)
 
         print("Running inference.", file=sys.stderr)
+        
+        audio = audio.astype(np.float32)/32768.0 #convert back to float representation
 
-        sttOutput = self.sttModel.stt(audio).lower().strip()
-        return sttOutput
+        segments, info = self.sttModel.transcribe(audio)
+        
+        return list(segments)
 
     def getCommand(self):
         command = self.command
@@ -232,11 +220,11 @@ class SoxEars():
             
             #tensor = self.resample_by_interpolation(decodedFloatSplit[0],self.RATE,16000)
             
-            tensor = torch.from_numpy(decodedFloatSplit[0][1::3])
+            tensor = torch.from_numpy(decodedFloatSplit[0][1::3]) #lazy downsample, keep every 3rd piece
             speech_prob = self.vadModel(tensor, 16000).item()
             
 
-            if speech_prob > 0.25:
+            if speech_prob > 0.15:
                 self.nonTalkingTimeElapsed = 0
                 self.linearFrames = np.append(self.linearFrames, decodedInt)
                 #print(len(linearFrames))
@@ -265,15 +253,18 @@ class SoxEars():
                         self.preNonTalkingBuffer = []
                         self.linearFrames = self.linearFrames.astype(np.int16)
 
-                        fullDecodedSplit = np.stack((self.linearFrames[::2], self.linearFrames[1::2]),
+                        
+                        #4000 for dc offset remove
+                        fullDecodedSplit = np.stack((self.linearFrames[::2] + 4000, self.linearFrames[1::2] + 4000),
                                                     axis=0)  # channels on separate axes
                         fullDecodedSplitTransposed = fullDecodedSplit.T
 
                         
+                        
                         wf.write('voiceIn.wav', self.RATE, fullDecodedSplitTransposed)
 
 
-                        frames = np.array([[], []])  # wipe out frames so audio is clear for next time
+                        self.frames = np.array([[], []])  # wipe out frames so audio is clear for next time
                         self.linearFrames = np.array([])
 
                         commandStated = ""
@@ -287,7 +278,6 @@ class SoxEars():
                         else:
                             print("here")
                             commandStated = self.processAudio()
-                            print(commandStated)
                             self.command = commandStated
                             self.awake = False
 
@@ -299,15 +289,16 @@ class SoxEars():
                                 print("Yes" + speaker)
                         '''
 
-        stream.close()
-        p.terminate()
+        self.stream.close()
+        #p.terminate()
 
     def tryWakeUp(self):
-        fs_new, audio = self.convert_samplerate(self.VOICE_IN_FILE, self.desired_sample_rate)
+        fs_new, audio = self.convert_samplerate(self.VOICE_IN_FILE, self.DESIRED_SAMPLE_RATE)
 
         predictions = self.wakeword_model.predict_clip(audio)
         for prediction in predictions:
             for lbl in prediction.keys():
+                print(prediction[lbl])
                 if prediction[lbl] > 0.05:
                     print("Awake!")
                     self.awake = True

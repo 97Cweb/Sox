@@ -4,11 +4,10 @@ import struct
 from numpy import array, concatenate, argmax
 from numpy import abs as nabs
 from scipy.signal import fftconvolve
-from matplotlib.pyplot import plot, show
-from math import log
+
 from math import asin
 
-from pydub import AudioSegment
+
 
 
 class SoxDirectionalEars():

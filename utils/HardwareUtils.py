@@ -1,6 +1,6 @@
 #NOTE: ALL FUNCTIONS CAN BE BYPASSED
 #Just call the object directly
-#import time
+
 import board
 
 
@@ -52,9 +52,9 @@ class Hardware:
           #gyro
           self.gyro = adafruit_mpu6050.MPU6050(i2c, 0x69)
           #touch
-          self.touch = adafruit_mpr121.MPR121(i2c)
+          self.touch = adafruit_mpr121.MPR121(i2c, address= 0x5A)
           #servoDriver
-          pca = PCA9685(i2c)
+          pca = PCA9685(i2c, address = 0x40)
           pca.frequency = 50
           
           self.servo0 = servo.Servo(pca.channels[0])
@@ -102,9 +102,6 @@ class Hardware:
          self.ledEars.value = status
          return True
 
-     def muteSpeaker(self, status):
-         self.speakerMute.value = status
-         return True
 
 
      def readGyro(self):
@@ -137,10 +134,14 @@ if __name__ == '__main__':
 
 
      while True:
+         print("here")
+         '''
          hardware.servo0.angle = 0
          hardware.servo1.angle = 0
          hardware.servo2.angle = 0
+         ''' 
          hardware.servo3.angle = 0
+         '''
          hardware.servo4.angle = 0
          hardware.servo5.angle = 0
          hardware.servo6.angle = 0
@@ -148,11 +149,15 @@ if __name__ == '__main__':
          hardware.servo8.angle = 0
          hardware.servo9.angle = 0
          hardware.servo10.angle = 0
+         '''
          time.sleep(1)
+         '''
          hardware.servo0.angle = 180
          hardware.servo1.angle = 180
          hardware.servo2.angle = 180
-         hardware.servo3.angle = 180
+         ''' 
+         hardware.servo3.angle = 90
+         ''' 
          hardware.servo4.angle = 180
          hardware.servo5.angle = 180
          hardware.servo6.angle = 180
@@ -161,3 +166,4 @@ if __name__ == '__main__':
          hardware.servo9.angle = 180
          hardware.servo10.angle = 180
          time.sleep(1)
+'''
