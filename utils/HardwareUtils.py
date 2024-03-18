@@ -21,7 +21,10 @@ import adafruit_ina260
 from adafruit_pca9685 import PCA9685
 from adafruit_motor import servo
 
-
+#for speaker/mouth
+import pyaudio
+import wave
+import numpy as np
 
 
 
@@ -112,6 +115,71 @@ class Hardware:
              self.upperServo.angle = 180
              self.lowerServo.angle = 180
              
+     class chatter:
+        
+        def __init__(self, mouthServo):
+            self.restPos = 10 #degrees mouth closed position
+            self.servo = mouthServo
+            self.p = pyaudio.PyAudio()
+
+            print("ChatterSox started")
+
+
+
+        
+        
+        def talk(self, path):
+            def setJaw(in_data, frame_count, time_info, status):
+                data = waveFile.readframes(frame_count)
+                channels = waveFile.getnchannels()
+                volume = getTarget(data, channels) #volume is max 1
+                offsetAngle = volume*10 #degrees
+                
+                self.servo.angle = self.restPos-offsetAngle
+                return (data, pyaudio.paContinue)
+            
+            def getTarget(data, channels):
+                levels = abs(np.frombuffer(data,dtype='<i2'))
+                volume = get_avg(levels, channels)
+                return volume
+
+            def get_avg(levels, channels):
+                avgVol = np.sum(levels)//len(levels)
+                return avgVol/10000 #10000 is max in ChatterPi
+
+            #stream audio file
+            waveFile = wave.open(path,'rb')
+            fileSampleWidth = waveFile.getsampwidth()
+            self.stream = self.p.open(format=self.p.get_format_from_width(fileSampleWidth),
+                                channels=waveFile.getnchannels(),
+                                rate=waveFile.getframerate(),
+                                frames_per_buffer = 1024,
+                                output=True,
+                                stream_callback=setJaw)
+            while self.stream.is_active():
+                time.sleep(0.1)
+            self.servo.angle = self.restPos
+
+
+
+        def play(self,path):
+            def callback(in_data, frame_count, time_info, status):
+                data = waveFile.readframes(frame_count)
+                return (data, pyaudio.paContinue)
+
+
+            waveFile = wave.open(path,'rb')
+            fileSampleWidth = waveFile.getsampwidth()
+            self.stream = self.p.open(format=self.p.get_format_from_width(fileSampleWidth),
+                                channels=waveFile.getnchannels(),
+                                rate=waveFile.getframerate(),
+                                frames_per_buffer = 1024,
+                                output=True,
+                                stream_callback=callback)
+            while self.stream.is_active():
+                time.sleep(0.1)
+            self.servo.angle = self.restPos
+             
 
 
 
@@ -165,6 +233,12 @@ if __name__ == '__main__':
      eyelids = hardware.eyelids(hardware.servo1, hardware.servo2)
      eyelids.sleep()
 
+     mouth = hardware.chatter(hardware.servo0)
+     
+     while True:
+         mouth.talk("test.wav")
+         time.sleep(1)
+    
      while True:
          hardware.flashlight(True)
          hardware.laser(True)
