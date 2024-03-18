@@ -93,7 +93,25 @@ class Hardware:
           
 
 
-
+     class eyelids:
+         def __init__(self, upperServo, lowerServo):
+             self.upperServo = upperServo
+             self.lowerServo = lowerServo
+             
+         def blink(self):
+             self.close()
+             time.sleep(0.1)
+             self.awake()
+         def sleep(self):
+             self.upperServo.angle = 180-10
+             self.lowerServo.angle = 180-15
+         def awake(self):
+             self.upperServo.angle = 180-30
+             self.lowerServo.angle = 180
+         def close(self):
+             self.upperServo.angle = 180
+             self.lowerServo.angle = 180
+             
 
 
 
@@ -144,8 +162,8 @@ if __name__ == '__main__':
      print(hardware.getTouch(0))
      print(hardware.getTouchArray())
 
-
-
+     eyelids = hardware.eyelids(hardware.servo1, hardware.servo2)
+     eyelids.sleep()
 
      while True:
          hardware.flashlight(True)
@@ -156,7 +174,8 @@ if __name__ == '__main__':
          hardware.servo1.angle = 0
          hardware.servo2.angle = 0
          ''' 
-         hardware.servo3.angle = 0
+         #hardware.servo3.angle = 0
+         #eyelids.awake()
          '''
          hardware.servo4.angle = 0
          hardware.servo5.angle = 0
@@ -175,7 +194,8 @@ if __name__ == '__main__':
          hardware.servo1.angle = 180
          hardware.servo2.angle = 180
          ''' 
-         hardware.servo3.angle = 90
+        # hardware.servo3.angle = 90
+         #eyelids.close()
          ''' 
          hardware.servo4.angle = 180
          hardware.servo5.angle = 180
