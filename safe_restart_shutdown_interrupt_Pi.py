@@ -59,10 +59,9 @@
 
 '''
 setup
+
 sudo nano /etc/rc.local
-add python /home/sox/Documents/Sox/safe_restart_shutdown_interrupt_Pi.py &
-exit
-sudo reboot
+sudo python /home/sox/Documents/Sox/safe_restart_shutdown_interrupt_Pi.py &
 '''
 
 

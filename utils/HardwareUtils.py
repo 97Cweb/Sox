@@ -231,7 +231,7 @@ if __name__ == '__main__':
      print(hardware.getTouchArray())
 
      eyelids = hardware.eyelids(hardware.servo1, hardware.servo2)
-     eyelids.sleep()
+     eyelids.awake()
 
      mouth = hardware.chatter(hardware.servo0)
      
