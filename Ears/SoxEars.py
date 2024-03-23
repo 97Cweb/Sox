@@ -3,8 +3,10 @@ import pyaudio
 import numpy as np
 import scipy.io.wavfile as wf
 
+
 import shlex
 import subprocess
+
 import sys
 import threading
 from faster_whisper import WhisperModel
@@ -41,7 +43,7 @@ class SoxEars():
         self.frames = np.array([[], []], np.int16)  # Initialize array to store frames
         self.linearFrames = np.array([], np.int16)
 
-        self.awake = True
+        self.awake = False
         self.listening = True
         self.command = ""
 
@@ -93,7 +95,7 @@ class SoxEars():
 
 
 
-        self.sttModel = WhisperModel("base.en",device="cpu", cpu_threads = 4, compute_type="float32")
+        self.sttModel = WhisperModel("tiny.en",device="cpu", compute_type="float32")
         
 
 
@@ -101,7 +103,7 @@ class SoxEars():
         print("STT Model setup complete")
 
         self.wakeword_model =  wakeModel(
-            wakeword_models=["/home/sox/Documents/Sox/.models/WakeWord/Hey_Socks.tflite"],
+            wakeword_models=["/home/sox/Documents/Sox/.models/WakeWord/hey_socks.tflite"],
             )
 
         print("Wakeword Setup complete")
@@ -162,8 +164,9 @@ class SoxEars():
             )
 
         return desired_sample_rate, np.frombuffer(output, np.int16)
+    
 
-
+    '''
     # DISCLAIMER: This function is copied from https://github.com/nwhitehead/swmixer/blob/master/swmixer.py, 
     #             which was released under LGPL. 
     def resample_by_interpolation(self, signal, input_fs, output_fs):
@@ -186,7 +189,7 @@ class SoxEars():
             signal,  # known data points
         )
         return resampled_signal
-
+    '''
     def processAudio(self):
         # convert sample rate
         fs_new, audio = self.convert_samplerate(self.VOICE_IN_FILE, self.DESIRED_SAMPLE_RATE)
@@ -204,7 +207,7 @@ class SoxEars():
         self.command = ""
         return command
 
-    
+
 
     def startListening(self):
         print("ears ready")
@@ -215,10 +218,6 @@ class SoxEars():
 
             decodedFloatSplit = np.stack((decodedFloat[::2], decodedFloat[1::2]), axis=0)  # channels on separate axes
 
-            
-            
-            
-            #tensor = self.resample_by_interpolation(decodedFloatSplit[0],self.RATE,16000)
             
             tensor = torch.from_numpy(decodedFloatSplit[0][1::3]) #lazy downsample, keep every 3rd piece
             speech_prob = self.vadModel(tensor, 16000).item()
@@ -237,11 +236,11 @@ class SoxEars():
 
                 self.nonTalkingTimeElapsed += (self.FRAMES_PER_BUFFER / self.RATE)
 
-                #record .5 second of silence
-                if self.nonTalkingTimeElapsed <= 0.5:
+                #record silence
+                if self.nonTalkingTimeElapsed <= 0.25:
                     self.postNonTalkingBuffer = np.append(self.postNonTalkingBuffer, decodedInt)
 
-                #after 1 second of silence, convert array to audio
+                #after silence added, convert array to audio
                 else:
                     # convert to wav
                     if len(self.linearFrames) > 0:
@@ -252,10 +251,14 @@ class SoxEars():
                         self.postNonTalkingBuffer = []
                         self.preNonTalkingBuffer = []
                         self.linearFrames = self.linearFrames.astype(np.int16)
-
                         
-                        #4000 for dc offset remove
-                        fullDecodedSplit = np.stack((self.linearFrames[::2] + 4000, self.linearFrames[1::2] + 4000),
+                        
+                        
+                        avg = np.average(self.linearFrames)
+                       
+                        
+                        #avg for dc offset remove
+                        fullDecodedSplit = np.stack((self.linearFrames[::2] + int(avg), self.linearFrames[1::2] + int(avg)),
                                                     axis=0)  # channels on separate axes
                         fullDecodedSplitTransposed = fullDecodedSplit.T
 
@@ -270,14 +273,17 @@ class SoxEars():
                         commandStated = ""
                         if not self.awake:
                             if lenLinearFrames < 500000:
-                                self.tryWakeUp()
+                                self.tryWakeUp(fullDecodedSplit)
                                 print("DONE short!")
                             else:
                                 print("Too Long")
 
                         else:
                             print("here")
-                            commandStated = self.processAudio()
+                            segments = self.processAudio()
+                            commandStated = ""
+                            for segment in segments:
+                                commandStated +=segment.text 
                             self.command = commandStated
                             self.awake = False
 
@@ -292,19 +298,20 @@ class SoxEars():
         self.stream.close()
         #p.terminate()
 
-    def tryWakeUp(self):
-        fs_new, audio = self.convert_samplerate(self.VOICE_IN_FILE, self.DESIRED_SAMPLE_RATE)
+    def tryWakeUp(self,fullDecodedSplit):
+        #fs_new, audio = self.convert_samplerate(self.VOICE_IN_FILE, self.DESIRED_SAMPLE_RATE)
+        audio = fullDecodedSplit[0][1::3] #lazy downsample, keep every 3rd piece
 
-        predictions = self.wakeword_model.predict_clip(audio)
+        wf.write('downsampled.wav',16000,audio)
+        predictions = self.wakeword_model.predict_clip(audio, padding = 0)
         for prediction in predictions:
             for lbl in prediction.keys():
-                print(prediction[lbl])
-                if prediction[lbl] > 0.05:
+                if prediction[lbl] > 0.5:
                     print("Awake!")
                     self.awake = True
                     return True
         return False
-
+        
 
     def startThreadedListening(self):
         threadedListening = threading.Thread(target = self.startListening,daemon = True)
