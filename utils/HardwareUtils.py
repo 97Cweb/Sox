@@ -21,6 +21,12 @@ import adafruit_ina260
 from adafruit_pca9685 import PCA9685
 from adafruit_motor import servo
 
+#for stepperDriver
+from adafruit_motorkit import MotorKit
+
+#for i2c IO
+from adafruit_mcp230xx.mcp23017 import MCP23017
+
 #for speaker/mouth
 import pyaudio
 import wave
@@ -69,6 +75,11 @@ class Hardware:
           pca = PCA9685(i2c, address = 0x40)
           pca.frequency = 50
           
+          #stepperDriver
+          self.kit = MotorKit(address = 0x60)
+          
+          self.mcp = MCP23017(i2c, address=0x20)
+          
           self.servo0 = servo.Servo(pca.channels[0])
           self.servo0.set_pulse_width_range(500, 2500)
           self.servo1 = servo.Servo(pca.channels[1])
@@ -93,7 +104,20 @@ class Hardware:
           self.servo10.set_pulse_width_range(500, 2500)
 
 
-          
+     class Neck:
+         
+        FORWARD = 1
+        REVERSE = 2
+        
+        def __init__(self,stepper):
+             self.stepper = stepper
+         
+        def step(self, direction = 1):
+             self.stepper.onestep(direction = direction)
+            
+        def release(self):
+            self.stepper.release()
+        
 
 
      class eyelids:
@@ -223,6 +247,7 @@ class Hardware:
           self.picam2.close()
 
 
+
 if __name__ == '__main__':
      hardware=Hardware()
      hardware.readPower()
@@ -235,48 +260,61 @@ if __name__ == '__main__':
 
      mouth = hardware.chatter(hardware.servo0)
      
-     while True:
-         mouth.talk("test.wav")
-         time.sleep(1)
+     neck = hardware.Neck(hardware.kit.stepper1)
+     
+     
+     
+     for i in range(100):
+         neck.step()
+         time.sleep(0.01)
+         
+     for i in range(100):
+        neck.step(neck.REVERSE)
+        time.sleep(0.01)
+    
+     neck.release()
+     
+     mouth.talk("test.wav")
+     time.sleep(1)
     
      while True:
-         hardware.flashlight(True)
-         hardware.laser(True)
-         hardware.ears(True)
-         '''
-         hardware.servo0.angle = 0
-         hardware.servo1.angle = 0
-         hardware.servo2.angle = 0
-         ''' 
-         #hardware.servo3.angle = 0
-         #eyelids.awake()
-         '''
-         hardware.servo4.angle = 0
-         hardware.servo5.angle = 0
-         hardware.servo6.angle = 0
-         hardware.servo7.angle = 0
-         hardware.servo8.angle = 0
-         hardware.servo9.angle = 0
-         hardware.servo10.angle = 0
-         '''
-         time.sleep(1)
-         hardware.flashlight(False)
-         hardware.laser(False)
-         hardware.ears(False)
-         '''
-         hardware.servo0.angle = 180
-         hardware.servo1.angle = 180
-         hardware.servo2.angle = 180
-         ''' 
-        # hardware.servo3.angle = 90
-         #eyelids.close()
-         ''' 
-         hardware.servo4.angle = 180
-         hardware.servo5.angle = 180
-         hardware.servo6.angle = 180
-         hardware.servo7.angle = 180
-         hardware.servo8.angle = 180
-         hardware.servo9.angle = 180
-         hardware.servo10.angle = 180
-         '''
-         time.sleep(1)
+          hardware.flashlight(True)
+          hardware.laser(True)
+          hardware.ears(True)
+          '''
+          hardware.servo0.angle = 0
+          hardware.servo1.angle = 0
+          hardware.servo2.angle = 0
+          '''
+
+          eyelids.awake()
+          '''
+          hardware.servo4.angle = 0
+          hardware.servo5.angle = 0
+          hardware.servo6.angle = 0
+          hardware.servo7.angle = 0
+          hardware.servo8.angle = 0
+          hardware.servo9.angle = 0
+          hardware.servo10.angle = 0
+          '''
+          time.sleep(1)
+          hardware.flashlight(False)
+          hardware.laser(False)
+          hardware.ears(False)
+          '''
+          hardware.servo0.angle = 180
+          hardware.servo1.angle = 180
+          hardware.servo2.angle = 180
+          ''' 
+         
+          eyelids.close()
+          ''' 
+          hardware.servo4.angle = 180
+          hardware.servo5.angle = 180
+          hardware.servo6.angle = 180
+          hardware.servo7.angle = 180
+          hardware.servo8.angle = 180
+          hardware.servo9.angle = 180
+          hardware.servo10.angle = 180
+          '''
+          time.sleep(1)
