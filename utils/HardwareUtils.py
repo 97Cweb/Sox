@@ -19,7 +19,7 @@ import adafruit_ina260
 
 #for servoDriver
 from adafruit_pca9685 import PCA9685
-from adafruit_motor import servo
+from adafruit_motor import servo, stepper
 
 #for stepperDriver
 from adafruit_motorkit import MotorKit
@@ -46,8 +46,7 @@ class Hardware:
           self.ledEars = digitalio.DigitalInOut(board.D22)
           self.ledLaser = digitalio.DigitalInOut(board.D27)
 
-          self.speakerMute = digitalio.DigitalInOut(board.D17)
-
+         
 
           #set port direction as output
           self.ledRed.direction = digitalio.Direction.OUTPUT
@@ -57,8 +56,7 @@ class Hardware:
           self.ledEars.direction = digitalio.Direction.OUTPUT
           self.ledLaser.direction = digitalio.Direction.OUTPUT
 
-          self.speakerMute.direction = digitalio.Direction.OUTPUT
-
+          
           #i2c setup
           i2c = board.I2C()  # uses board.SCL and board.SDA
           
@@ -77,7 +75,6 @@ class Hardware:
           
           #stepperDriver
           self.kit = MotorKit(address = 0x60)
-          
           self.mcp = MCP23017(i2c, address=0x20)
           
           self.servo0 = servo.Servo(pca.channels[0])
@@ -113,7 +110,7 @@ class Hardware:
              self.stepper = stepper
          
         def step(self, direction = 1):
-             self.stepper.onestep(direction = direction)
+             self.stepper.onestep(direction = direction, style= stepper.DOUBLE)
             
         def release(self):
             self.stepper.release()
@@ -262,8 +259,10 @@ if __name__ == '__main__':
      
      neck = hardware.Neck(hardware.kit.stepper1)
      
-     
-     
+     while True:
+         neck.step()
+         #time.sleep(0.02)
+     ''' 
      for i in range(100):
          neck.step()
          time.sleep(0.01)
@@ -273,10 +272,15 @@ if __name__ == '__main__':
         time.sleep(0.01)
     
      neck.release()
+     '''
      
      mouth.talk("test.wav")
      time.sleep(1)
-    
+     
+     hardware.flashlight(True)
+     hardware.laser(True)
+     hardware.ears(True)
+     """
      while True:
           hardware.flashlight(True)
           hardware.laser(True)
@@ -318,3 +322,4 @@ if __name__ == '__main__':
           hardware.servo10.angle = 180
           '''
           time.sleep(1)
+          """
