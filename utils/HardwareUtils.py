@@ -77,6 +77,9 @@ class Hardware:
           self.kit = MotorKit(address = 0x60)
           self.mcp = MCP23017(i2c, address=0x20)
           
+          self.neckSensor = self.mcp.get_pin(0)
+          self.neckSensor.direction = digitalio.Direction.INPUT
+          
           self.servo0 = servo.Servo(pca.channels[0])
           self.servo0.set_pulse_width_range(500, 2500)
           self.servo1 = servo.Servo(pca.channels[1])
@@ -259,9 +262,7 @@ if __name__ == '__main__':
      
      neck = hardware.Neck(hardware.kit.stepper1)
      
-     while True:
-         neck.step()
-         #time.sleep(0.02)
+     
      ''' 
      for i in range(100):
          neck.step()
@@ -277,9 +278,17 @@ if __name__ == '__main__':
      mouth.talk("test.wav")
      time.sleep(1)
      
+     '''
+     while True:
+         neck.step()
+         #time.sleep(0.02)
+     
      hardware.flashlight(True)
      hardware.laser(True)
      hardware.ears(True)
+     '''
+     while True:
+         print(hardware.neckSensor.value)
      """
      while True:
           hardware.flashlight(True)
