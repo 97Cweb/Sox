@@ -39,7 +39,7 @@ class Hardware:
 
      def __init__(self):
          
-          atexit.register(self.__del__)
+          atexit.register(self.close)
           #setup all IO ports
           self.ledRed = digitalio.DigitalInOut(board.D11)
           self.ledGreen = digitalio.DigitalInOut(board.D9)
@@ -260,23 +260,25 @@ class Hardware:
              array[i] = self.touch[i].value
          return array
 
-
+     def close(self):
+         self.__del__()
      def __del__(self):
+         print("goodbye")
          self.neck.release()
-         self.picam2.close()
+         #self.picam2.close()
 
 
 
 if __name__ == '__main__':
     
-     time.sleep(10)
+     
      hardware=Hardware()
      hardware.readPower()
      hardware.readGyro()
      print(hardware.getTouch(0))
      print(hardware.getTouchArray())
 
-     
+     hardware.close()
 
      
      
@@ -296,12 +298,12 @@ if __name__ == '__main__':
      
      time.sleep(1)
      
-     '''
+     
      while True:
          
-         print()
-         #time.sleep(0.02)
-     '''
+         #print()
+         time.sleep(0.02)
+     
      '''
      hardware.flashlight(True)
      hardware.laser(True)
