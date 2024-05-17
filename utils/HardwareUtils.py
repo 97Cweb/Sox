@@ -1,6 +1,6 @@
 #NOTE: ALL FUNCTIONS CAN BE BYPASSED
 #Just call the object directly
-
+import atexit
 import board
 
 
@@ -38,6 +38,8 @@ import numpy as np
 class Hardware:
 
      def __init__(self):
+         
+          atexit.register(self.__del__)
           #setup all IO ports
           self.ledRed = digitalio.DigitalInOut(board.D11)
           self.ledGreen = digitalio.DigitalInOut(board.D9)
@@ -78,7 +80,7 @@ class Hardware:
           self.mcp = MCP23017(i2c, address=0x20)
           
           self.neckSensor = self.mcp.get_pin(0)
-          self.neckSensor.direction = digitalio.Direction.INPUT
+          
           
           self.servo0 = servo.Servo(pca.channels[0])
           self.servo0.set_pulse_width_range(500, 2500)
@@ -102,25 +104,41 @@ class Hardware:
           self.servo9.set_pulse_width_range(500, 2500)
           self.servo10 = servo.Servo(pca.channels[10])
           self.servo10.set_pulse_width_range(500, 2500)
+          
+          self.neck = self.Neck(self.kit.stepper1, self.neckSensor)
+          self.neck.home()
+          
+          self.eyelids = self.Eyelids(self.servo1, self.servo2)
+          self.eyelids.awake()
+          
+          self.mouth = self.Chatter(self.servo0)
+          self.mouth.talk("test.wav")
 
 
      class Neck:
          
-        FORWARD = 1
-        REVERSE = 2
+        FORWARD = 2
+        REVERSE = 1
         
-        def __init__(self,stepper):
-             self.stepper = stepper
+        def __init__(self,stepper, sensor):
+            
+            self.sensor = sensor
+            self.sensor.direction = digitalio.Direction.INPUT
+            self.stepper = stepper
          
         def step(self, direction = 1):
              self.stepper.onestep(direction = direction, style= stepper.DOUBLE)
             
         def release(self):
             self.stepper.release()
+            
+        def home(self):
+            while not self.sensor.value:
+                self.step()
         
 
 
-     class eyelids:
+     class Eyelids:
          def __init__(self, upperServo, lowerServo):
              self.upperServo = upperServo
              self.lowerServo = lowerServo
@@ -139,7 +157,7 @@ class Hardware:
              self.upperServo.angle = 180
              self.lowerServo.angle = 180
              
-     class chatter:
+     class Chatter:
         
         def __init__(self, mouthServo):
             self.restPos = 10 #degrees mouth closed position
@@ -244,23 +262,23 @@ class Hardware:
 
 
      def __del__(self):
-          self.picam2.close()
+         self.neck.release()
+         self.picam2.close()
 
 
 
 if __name__ == '__main__':
+    
+     time.sleep(10)
      hardware=Hardware()
      hardware.readPower()
      hardware.readGyro()
      print(hardware.getTouch(0))
      print(hardware.getTouchArray())
 
-     eyelids = hardware.eyelids(hardware.servo1, hardware.servo2)
-     eyelids.awake()
-
-     mouth = hardware.chatter(hardware.servo0)
      
-     neck = hardware.Neck(hardware.kit.stepper1)
+
+     
      
      
      ''' 
@@ -275,20 +293,22 @@ if __name__ == '__main__':
      neck.release()
      '''
      
-     mouth.talk("test.wav")
+     
      time.sleep(1)
      
      '''
      while True:
-         neck.step()
+         
+         print()
          #time.sleep(0.02)
-     
+     '''
+     '''
      hardware.flashlight(True)
      hardware.laser(True)
      hardware.ears(True)
      '''
-     while True:
-         print(hardware.neckSensor.value)
+
+         
      """
      while True:
           hardware.flashlight(True)
