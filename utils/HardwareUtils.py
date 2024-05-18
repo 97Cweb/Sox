@@ -126,15 +126,19 @@ class Hardware:
             self.sensor.direction = digitalio.Direction.INPUT
             self.stepper = stepper
          
-        def step(self, direction = 1):
+        def hard_step(self, direction = FORWARD):
              self.stepper.onestep(direction = direction, style= stepper.DOUBLE)
+        def soft_step(self, direction = FORWARD):
+            self.stepper.onestep(direction=direction, style = stepper.SINGLE)
             
         def release(self):
             self.stepper.release()
             
         def home(self):
             while not self.sensor.value:
-                self.step()
+                self.hard_step()
+            self.soft_step(direction= self.REVERSE)
+        
         
 
 
