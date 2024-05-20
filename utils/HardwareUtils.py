@@ -1,8 +1,10 @@
 #NOTE: ALL FUNCTIONS CAN BE BYPASSED
 #Just call the object directly
-import atexit
-import board
 
+import sys
+import signal
+
+import board
 
 import digitalio
 import time
@@ -39,7 +41,6 @@ class Hardware:
 
      def __init__(self):
          
-          atexit.register(self.close)
           #setup all IO ports
           self.ledRed = digitalio.DigitalInOut(board.D11)
           self.ledGreen = digitalio.DigitalInOut(board.D9)
@@ -190,6 +191,8 @@ class Hardware:
                 return volume
 
             def get_avg(levels, channels):
+                if len(levels) == 0:
+                    return 0
                 avgVol = np.sum(levels)//len(levels)
                 return avgVol/10000 #10000 is max in ChatterPi
 
@@ -269,92 +272,91 @@ class Hardware:
      def __del__(self):
          print("goodbye")
          self.neck.release()
+         self.kit.stepper2.release()
+         
+         
+         if hasattr(self, 'stream') and self.stream.is_active():
+             self.stream.stop_stream()
+             self.stream.close()
+         if hasattr(self, 'p'):
+             self.p.terminate()
          #self.picam2.close()
 
+
+def testing(hardware):
+    
+    hardware.readPower()
+    hardware.readGyro()
+    print(hardware.getTouch(0))
+    print(hardware.getTouchArray())
+
+    
+
+    
+    
+    
+ 
+    while True:
+        hardware.kit.stepper2.onestep()
+        '''
+        hardware.servo3.angle = 0
+        time.sleep(1)
+        hardware.servo3.angle = 180
+        time.sleep(1)
+   
+        '''   
+    '''
+    hardware.flashlight(True)
+    hardware.laser(True)
+    hardware.ears(True)
+    '''
+
+        
+    """
+    while True:
+         hardware.flashlight(True)
+         hardware.laser(True)
+         hardware.ears(True)
+         eyelids.awake()
+         '''
+         hardware.servo4.angle = 0
+         hardware.servo5.angle = 0
+         hardware.servo6.angle = 0
+         hardware.servo7.angle = 0
+         hardware.servo8.angle = 0
+         hardware.servo9.angle = 0
+         hardware.servo10.angle = 0
+         '''
+         time.sleep(1)
+         hardware.flashlight(False)
+         hardware.laser(False)
+         hardware.ears(False)         
+         eyelids.close()
+         ''' 
+         hardware.servo4.angle = 180
+         hardware.servo5.angle = 180
+         hardware.servo6.angle = 180
+         hardware.servo7.angle = 180
+         hardware.servo8.angle = 180
+         hardware.servo9.angle = 180
+         hardware.servo10.angle = 180
+         '''
+         time.sleep(1)
+         """
 
 
 if __name__ == '__main__':
     
-     
-     hardware=Hardware()
-     hardware.readPower()
-     hardware.readGyro()
-     print(hardware.getTouch(0))
-     print(hardware.getTouchArray())
+    hardware=Hardware()
 
-     hardware.close()
+    def signal_handler(sig, frame):
+        print('You pressed Ctrl+C!')
+        hardware.close()
+        sys.exit(0)  
 
-     
-     
-     
-     ''' 
-     for i in range(100):
-         neck.step()
-         time.sleep(0.01)
-         
-     for i in range(100):
-        neck.step(neck.REVERSE)
-        time.sleep(0.01)
     
-     neck.release()
-     '''
+    signal.signal(signal.SIGINT, signal_handler)
+    testing(hardware)
+    
+    signal.pause()
      
-     
-     time.sleep(1)
-     
-     
-     while True:
-         
-         #print()
-         time.sleep(0.02)
-     
-     '''
-     hardware.flashlight(True)
-     hardware.laser(True)
-     hardware.ears(True)
-     '''
-
-         
-     """
-     while True:
-          hardware.flashlight(True)
-          hardware.laser(True)
-          hardware.ears(True)
-          '''
-          hardware.servo0.angle = 0
-          hardware.servo1.angle = 0
-          hardware.servo2.angle = 0
-          '''
-
-          eyelids.awake()
-          '''
-          hardware.servo4.angle = 0
-          hardware.servo5.angle = 0
-          hardware.servo6.angle = 0
-          hardware.servo7.angle = 0
-          hardware.servo8.angle = 0
-          hardware.servo9.angle = 0
-          hardware.servo10.angle = 0
-          '''
-          time.sleep(1)
-          hardware.flashlight(False)
-          hardware.laser(False)
-          hardware.ears(False)
-          '''
-          hardware.servo0.angle = 180
-          hardware.servo1.angle = 180
-          hardware.servo2.angle = 180
-          ''' 
-         
-          eyelids.close()
-          ''' 
-          hardware.servo4.angle = 180
-          hardware.servo5.angle = 180
-          hardware.servo6.angle = 180
-          hardware.servo7.angle = 180
-          hardware.servo8.angle = 180
-          hardware.servo9.angle = 180
-          hardware.servo10.angle = 180
-          '''
-          time.sleep(1)
-          """
