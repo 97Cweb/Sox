@@ -72,23 +72,37 @@ def float2pcm(sig, dtype='int16'):
     
 if __name__ == "__main__":
     didHearName = False
+    recordMode = False
+    isTalking = False
     try:
         while True:
             try:
                 liveAudio = np.frombuffer(mic_stream.read(CHUNK, exception_on_overflow=False), dtype=np.float32)
                 stackedAudio = np.stack((liveAudio[::2], liveAudio[1::2]), axis=0)  # channels on separate axes
-                leftTrack = stackedAudio[0]
-                downSampledAudio = leftTrack[0::3] #left track only
+                leftTrack = stackedAudio[0] #left track only
+                downSampledAudio = leftTrack[0::3] #downsample by factor of 3, 16kHz equivalent
                 pcmDownSampledAudio = float2pcm(downSampledAudio)
-                prediction = wakeword_model.predict(pcmDownSampledAudio)
+                
+                if not recordMode:
+                    prediction = wakeword_model.predict(pcmDownSampledAudio)
                 
                 
-                if prediction["hey_socks"] >= 0.1:
-                    didHearName = True
-                elif didHearName:
-                    didHearName=False
-                    print("yes?")
-                    
+                    if prediction["hey_socks"] >= 0.1:
+                        didHearName = True
+                    elif didHearName:
+                        didHearName=False
+                        print("yes?")
+                        recordMode = True
+                else:
+                    #use VAD to concatenate all audio together, with second of silence added before and after, pass to STT
+                    #audio += downSampledAudio
+                    #if not VAD:
+                    #	timeElapsed += CHUNK/RATE
+                    #	if timeElapsed > 1:
+                    #		recordMode = False
+                    #		#pass to STT
+                    #		#pass to brain
+                    pass
                     
                 
             except IOError as e:
