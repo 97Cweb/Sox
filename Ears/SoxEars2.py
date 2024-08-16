@@ -4,8 +4,8 @@ from openwakeword.model import Model as wakeModel
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-RATE = 16000
-CHUNK = 1024  # Increased buffer size
+RATE = 48000
+CHUNK = 3072  # Increased buffer size, 3*1024 as wee only keep 1/3 for wakeword detection
 audio = pyaudio.PyAudio()
 
 info = audio.get_host_api_info_by_index(0)
@@ -39,7 +39,8 @@ if __name__ == "__main__":
         while True:
             try:
                 liveAudio = np.frombuffer(mic_stream.read(CHUNK, exception_on_overflow=False), dtype=np.int16)
-                prediction = wakeword_model.predict(liveAudio)
+                downSampledAudio = liveAudio[0::3]
+                prediction = wakeword_model.predict(downSampledAudio)
                 #print(prediction)
                 
                 if prediction["hey_socks"] >= 0.3:
